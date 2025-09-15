@@ -1,0 +1,35 @@
+name: Build & Test & Native JNI
+
+on:
+  push:
+    branches: [ dev, main, master ]
+  pull_request:
+    branches: [ dev, main, master ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '21'
+      - name: Build JNI native lib
+        run: |
+          cd src/main/native
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            gcc -fPIC -shared -o timexjni_linux_${{ matrix.arch }}.so -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" timexjni.c
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            gcc -dynamiclib -o timexjni_mac_${{ matrix.arch }}.dylib -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/darwin" timexjni.c
+          fi
+          cp timexjni* ../../resources/
+      - name: Build with Maven
+        run: mvn -B package --file pom.xml
+      - name: Run tests
+        run: mvn test

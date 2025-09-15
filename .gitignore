@@ -1,0 +1,12 @@
+# Maven
+/target/
+*.iml
+.idea/
+*.class
+*.log
+# Native build
+*.so
+*.dylib
+*.dll
+# OS
+.DS_Store
