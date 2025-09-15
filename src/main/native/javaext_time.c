@@ -1,7 +1,9 @@
+#define _POSIX_C_SOURCE 200809L
 #include <jni.h>
 #include <time.h>
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Header for class com_xsyphon_javaext_NativeTimeJNI */
 #ifndef _Included_com_xsyphon_javaext_NativeTimeJNI
