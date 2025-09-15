@@ -1,0 +1,262 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, dev ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, dev ]
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'corretto'
+
+jobs:
+  # Quick tests without native compilation
+  quick-test:
+    name: Quick test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Test with Maven (skip native)
+      run: mvn clean test -Pskip-native
+    
+    - name: Test with Gradle (skip native)
+      run: |
+        chmod +x gradlew
+        ./gradlew test -PskipNativeBuild=true
+
+  # Build native libraries for supported platforms
+  build-native:
+    name: Build native ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x64
+          - platform: linux
+            arch: amd64
+            runner: ubuntu-latest
+            cc: gcc
+            shared_flag: -shared
+            lib_ext: so
+            include_path: linux
+            extra_libs: -lrt
+          
+          # macOS x64 (Intel)
+          - platform: macos
+            arch: amd64
+            runner: macos-13
+            cc: clang
+            shared_flag: -dynamiclib
+            lib_ext: dylib
+            include_path: darwin
+            extra_libs: ""
+          
+          # macOS ARM64 (Apple Silicon)
+          - platform: macos
+            arch: arm64
+            runner: macos-latest
+            cc: clang
+            shared_flag: -dynamiclib
+            lib_ext: dylib
+            include_path: darwin
+            extra_libs: ""
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+    - name: Install build tools (Linux)
+      if: matrix.platform == 'linux'
+      run: sudo apt-get update && sudo apt-get install -y build-essential
+
+    - name: Build native library
+      run: |
+        mkdir -p target/native/${{ matrix.platform }}/${{ matrix.arch }}
+        
+        ${{ matrix.cc }} -O3 -Wall -Wextra -fPIC -std=c99 \
+          -I"$JAVA_HOME/include" \
+          -I"$JAVA_HOME/include/${{ matrix.include_path }}" \
+          ${{ matrix.shared_flag }} \
+          -o target/native/${{ matrix.platform }}/${{ matrix.arch }}/libjavaext_time.${{ matrix.lib_ext }} \
+          src/main/native/javaext_time.c \
+          ${{ matrix.extra_libs }}
+
+    - name: Verify library
+      run: |
+        ls -la target/native/${{ matrix.platform }}/${{ matrix.arch }}/
+        file target/native/${{ matrix.platform }}/${{ matrix.arch }}/libjavaext_time.${{ matrix.lib_ext }}
+
+    - name: Upload native library
+      uses: actions/upload-artifact@v4
+      with:
+        name: native-${{ matrix.platform }}-${{ matrix.arch }}
+        path: target/native/${{ matrix.platform }}/${{ matrix.arch }}/libjavaext_time.${{ matrix.lib_ext }}
+
+  # Cross-compile Linux ARM64
+  build-linux-arm64:
+    name: Build native linux-arm64 (cross-compile)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+    - name: Install cross-compilation tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+
+    - name: Cross-compile ARM64 library
+      run: |
+        mkdir -p target/native/linux/arm64
+        
+        aarch64-linux-gnu-gcc -O3 -Wall -Wextra -fPIC -std=c99 \
+          -I"$JAVA_HOME/include" \
+          -I"$JAVA_HOME/include/linux" \
+          -shared \
+          -o target/native/linux/arm64/libjavaext_time.so \
+          src/main/native/javaext_time.c \
+          -lrt
+
+    - name: Verify library
+      run: |
+        ls -la target/native/linux/arm64/
+        file target/native/linux/arm64/libjavaext_time.so
+
+    - name: Upload native library
+      uses: actions/upload-artifact@v4
+      with:
+        name: native-linux-arm64
+        path: target/native/linux/arm64/libjavaext_time.so
+
+  # Test with native libraries
+  test-with-native:
+    name: Test with native libraries on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: [build-native, build-linux-arm64]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+    - name: Download native library for current platform
+      uses: actions/download-artifact@v4
+      with:
+        name: native-${{ matrix.platform }}-${{ matrix.arch }}
+        path: downloaded-lib/
+
+    - name: Install native library
+      run: |
+        mkdir -p src/main/resources/native/${{ matrix.platform }}/${{ matrix.arch }}
+        cp downloaded-lib/* src/main/resources/native/${{ matrix.platform }}/${{ matrix.arch }}/
+        ls -la src/main/resources/native/${{ matrix.platform }}/${{ matrix.arch }}/
+
+    - name: Test with native library
+      run: |
+        mvn clean test -Pskip-native
+
+    - name: Run performance test
+      run: |
+        mvn exec:java -Dexec.mainClass="com.xsyphon.javaext.PerformanceTest" -Pskip-native
+
+  # Create release package (only on tags)
+  create-release:
+    name: Create release package
+    runs-on: ubuntu-latest
+    needs: [quick-test, build-native, build-linux-arm64, test-with-native]
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+    - name: Download all native libraries
+      uses: actions/download-artifact@v4
+      with:
+        pattern: native-*
+        path: native-libs/
+        merge-multiple: true
+
+    - name: Organize native libraries
+      run: |
+        mkdir -p src/main/resources/native/{linux,macos}/{amd64,arm64}
+        
+        # Copy libraries to correct locations
+        find native-libs/ -name "*.so" -o -name "*.dylib" | while read lib; do
+          echo "Found library: $lib"
+          if [[ $(basename "$lib") == *".so" ]]; then
+            if [[ "$lib" == *"amd64"* ]] || [[ "$lib" == *"native-linux-amd64"* ]]; then
+              cp "$lib" src/main/resources/native/linux/amd64/libjavaext_time.so
+            elif [[ "$lib" == *"arm64"* ]] || [[ "$lib" == *"native-linux-arm64"* ]]; then
+              cp "$lib" src/main/resources/native/linux/arm64/libjavaext_time.so
+            fi
+          elif [[ $(basename "$lib") == *".dylib" ]]; then
+            if [[ "$lib" == *"amd64"* ]] || [[ "$lib" == *"native-macos-amd64"* ]]; then
+              cp "$lib" src/main/resources/native/macos/amd64/libjavaext_time.dylib
+            elif [[ "$lib" == *"arm64"* ]] || [[ "$lib" == *"native-macos-arm64"* ]]; then
+              cp "$lib" src/main/resources/native/macos/arm64/libjavaext_time.dylib
+            fi
+          fi
+        done
+        
+        echo "Final library structure:"
+        find src/main/resources/native/ -type f
+
+    - name: Build release JAR
+      run: mvn clean package -Pskip-native
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: javaext-release-${{ github.ref_name }}
+        path: target/*.jar

@@ -47,14 +47,14 @@ jobs:
         distribution: ${{ env.JAVA_DISTRIBUTION }}
 
     - name: Cache Maven dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
 
     - name: Cache Gradle dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.gradle/caches
@@ -110,7 +110,7 @@ jobs:
         fi
 
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results-${{ matrix.platform }}-${{ matrix.arch }}
@@ -121,7 +121,7 @@ jobs:
           build/libs/
 
     - name: Upload native libraries
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.platform != 'windows'
       with:
         name: native-libs-${{ matrix.platform }}-${{ matrix.arch }}
@@ -175,13 +175,13 @@ jobs:
         ./gradlew build -PskipNativeBuild=true
 
     - name: Upload Maven artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: maven-artifacts
         path: target/*.jar
 
     - name: Upload Gradle artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: gradle-artifacts
         path: build/libs/*.jar
