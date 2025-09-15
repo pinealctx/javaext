@@ -1,0 +1,274 @@
+name: Build Native Libraries
+
+on:
+  push:
+    branches: [ main, dev ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, dev ]
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'corretto'
+
+jobs:
+  # Build native libraries for different platforms
+  build-native:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+            cc: gcc
+            target_dir: linux/amd64
+            lib_name: libjavaext_time.so
+          
+          # macOS x64 (Intel)
+          - os: macos-13
+            platform: macos
+            arch: amd64
+            cc: clang
+            target_dir: macos/amd64
+            lib_name: libjavaext_time.dylib
+          
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+            cc: clang
+            target_dir: macos/arm64
+            lib_name: libjavaext_time.dylib
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+    - name: Install build tools (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc libc6-dev
+
+    - name: Install build tools (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        # Xcode command line tools should already be available
+        xcode-select --print-path
+
+    - name: Build native library
+      run: |
+        # Create target directory
+        mkdir -p target/native/${{ matrix.target_dir }}
+        
+        # Set compiler
+        export CC=${{ matrix.cc }}
+        
+        # Build the library
+        $CC -O3 -Wall -Wextra -fPIC -std=c99 \
+          -I"$JAVA_HOME/include" \
+          -I"$JAVA_HOME/include/${{ matrix.platform == 'macos' && 'darwin' || 'linux' }}" \
+          ${{ matrix.platform == 'linux' && '-shared' || '-dynamiclib' }} \
+          -o target/native/${{ matrix.target_dir }}/${{ matrix.lib_name }} \
+          src/main/native/javaext_time.c \
+          ${{ matrix.platform == 'linux' && '-lrt' || '' }}
+
+    - name: Verify library
+      run: |
+        ls -la target/native/${{ matrix.target_dir }}/
+        file target/native/${{ matrix.target_dir }}/${{ matrix.lib_name }}
+
+    - name: Upload native library artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: native-lib-${{ matrix.platform }}-${{ matrix.arch }}
+        path: target/native/${{ matrix.target_dir }}/${{ matrix.lib_name }}
+        retention-days: 7
+
+  # Build Linux ARM64 using cross-compilation
+  build-linux-arm64:
+    name: Build linux-arm64 (cross-compile)
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+    - name: Install cross-compilation tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+
+    - name: Build ARM64 library
+      run: |
+        # Create target directory
+        mkdir -p target/native/linux/arm64
+        
+        # Cross-compile for ARM64
+        aarch64-linux-gnu-gcc -O3 -Wall -Wextra -fPIC -std=c99 \
+          -I"$JAVA_HOME/include" \
+          -I"$JAVA_HOME/include/linux" \
+          -shared \
+          -o target/native/linux/arm64/libjavaext_time.so \
+          src/main/native/javaext_time.c \
+          -lrt
+
+    - name: Verify library
+      run: |
+        ls -la target/native/linux/arm64/
+        file target/native/linux/arm64/libjavaext_time.so
+
+    - name: Upload native library artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: native-lib-linux-arm64
+        path: target/native/linux/arm64/libjavaext_time.so
+        retention-days: 7
+
+  # Test with native libraries
+  test-with-natives:
+    name: Test with native libraries
+    needs: [build-native, build-linux-arm64]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+    - name: Download all native libraries
+      uses: actions/download-artifact@v4
+      with:
+        pattern: native-lib-*
+        path: downloaded-libs/
+        merge-multiple: true
+
+    - name: Organize native libraries
+      run: |
+        # Create the resources directory structure
+        mkdir -p src/main/resources/native/linux/amd64
+        mkdir -p src/main/resources/native/linux/arm64
+        mkdir -p src/main/resources/native/macos/amd64
+        mkdir -p src/main/resources/native/macos/arm64
+        
+        # Copy libraries to the correct locations
+        find downloaded-libs/ -name "*.so" -o -name "*.dylib" | while read lib; do
+          echo "Processing: $lib"
+          case $(basename "$lib") in
+            libjavaext_time.so)
+              if [[ "$lib" == *"linux-amd64"* ]]; then
+                cp "$lib" src/main/resources/native/linux/amd64/
+              elif [[ "$lib" == *"linux-arm64"* ]]; then
+                cp "$lib" src/main/resources/native/linux/arm64/
+              fi
+              ;;
+            libjavaext_time.dylib)
+              if [[ "$lib" == *"macos-amd64"* ]]; then
+                cp "$lib" src/main/resources/native/macos/amd64/
+              elif [[ "$lib" == *"macos-arm64"* ]]; then
+                cp "$lib" src/main/resources/native/macos/arm64/
+              fi
+              ;;
+          esac
+        done
+        
+        # Show what we have
+        find src/main/resources/native/ -type f -exec ls -la {} \;
+
+    - name: Build and test with Maven
+      run: |
+        mvn clean test -Pskip-native
+
+    - name: Run performance test
+      run: |
+        mvn exec:java -Dexec.mainClass="com.xsyphon.javaext.PerformanceTest" -Pskip-native
+
+  # Create release artifacts
+  create-release-artifact:
+    name: Create release JAR with all native libraries
+    needs: [build-native, build-linux-arm64, test-with-natives]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+    - name: Download all native libraries
+      uses: actions/download-artifact@v4
+      with:
+        pattern: native-lib-*
+        path: downloaded-libs/
+        merge-multiple: true
+
+    - name: Organize native libraries for packaging
+      run: |
+        # Create the resources directory structure
+        mkdir -p src/main/resources/native/linux/amd64
+        mkdir -p src/main/resources/native/linux/arm64
+        mkdir -p src/main/resources/native/macos/amd64
+        mkdir -p src/main/resources/native/macos/arm64
+        
+        # Copy libraries based on artifact names
+        if [ -f "downloaded-libs/native-lib-linux-amd64" ]; then
+          cp downloaded-libs/native-lib-linux-amd64 src/main/resources/native/linux/amd64/libjavaext_time.so
+        fi
+        
+        if [ -f "downloaded-libs/native-lib-linux-arm64" ]; then
+          cp downloaded-libs/native-lib-linux-arm64 src/main/resources/native/linux/arm64/libjavaext_time.so
+        fi
+        
+        if [ -f "downloaded-libs/native-lib-macos-amd64" ]; then
+          cp downloaded-libs/native-lib-macos-amd64 src/main/resources/native/macos/amd64/libjavaext_time.dylib
+        fi
+        
+        if [ -f "downloaded-libs/native-lib-macos-arm64" ]; then
+          cp downloaded-libs/native-lib-macos-arm64 src/main/resources/native/macos/arm64/libjavaext_time.dylib
+        fi
+        
+        # Verify all libraries are in place
+        find src/main/resources/native/ -type f -exec ls -la {} \;
+
+    - name: Build final JAR with all native libraries
+      run: |
+        mvn clean package -Pskip-native
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: javaext-release-${{ github.ref_name }}
+        path: target/*.jar
+        retention-days: 30
