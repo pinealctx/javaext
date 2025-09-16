@@ -104,6 +104,7 @@ public class TimeXBenchmark {
         System.out.println("Warming up JVM...");
         // JVM warmup
         for (int i = 0; i < 50_000; i++) {
+            System.nanoTime();
             TimeX.unixNanoInstant();
             TimeX.unixNanoHybrid();
             TimeX.unixNanoMilliPrecision();
@@ -117,6 +118,7 @@ public class TimeXBenchmark {
         System.out.println("─".repeat(70));
 
         // Test each method
+        testMethod("System.nanoTime()", iterations, System::nanoTime);
         testMethod("Instant.now()", iterations, TimeX::unixNanoInstant);
         testMethod("System.hybrid", iterations, TimeX::unixNanoHybrid);
         testMethod("Millis precision", iterations, TimeX::unixNanoMilliPrecision);
