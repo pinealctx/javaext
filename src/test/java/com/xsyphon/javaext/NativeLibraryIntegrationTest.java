@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Integration tests for native library functionality.
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.1.0
  */
 class NativeLibraryIntegrationTest {
     

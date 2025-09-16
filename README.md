@@ -23,14 +23,14 @@ A high-performance Java library for obtaining Unix nanosecond timestamps with mu
 <dependency>
     <groupId>com.xsyphon</groupId>
     <artifactId>javaext</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```gradle
-implementation 'com.xsyphon:javaext:1.0.0'
+implementation 'com.xsyphon:javaext:1.1.0'
 ```
 
 ### Basic Usage

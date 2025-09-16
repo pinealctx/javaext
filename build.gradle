@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'com.xsyphon'
-version = '1.0.0'
+version = '1.1.0'
 description = 'High-performance Unix nanosecond timestamp utilities for Java'
 
 java {
@@ -91,6 +91,9 @@ task fatJar(type: Jar) {
     description = 'Create a fat JAR with all dependencies'
     archiveClassifier = 'fat'
     
+    // Strategy for handling duplicate files
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
     manifest {
         attributes(
             'Main-Class': 'com.xsyphon.javaext.TimeXBenchmark',
@@ -100,8 +103,29 @@ task fatJar(type: Jar) {
         )
     }
     
+    // Include dependency class files
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    
+    // Include project's own files
     with jar
+    
+    // Exclude signature files and duplicate license files
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA' 
+    exclude 'META-INF/*.RSA'
+    exclude 'META-INF/MANIFEST.MF'
+    exclude 'META-INF/LICENSE*'
+    exclude 'META-INF/NOTICE*'
+    exclude 'META-INF/AL2.0'
+    exclude 'META-INF/LGPL2.1'
+    
+    // Preserve necessary service files
+    exclude { details ->
+        details.file.name.endsWith('.kotlin_module') ||
+        details.file.name.endsWith('.version') ||
+        (details.path.startsWith('META-INF/') && 
+         !details.path.startsWith('META-INF/services/'))
+    }
 }
 
 // Make fatJar depend on jar

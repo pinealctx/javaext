@@ -12,7 +12,7 @@ import java.nio.file.StandardCopyOption;
  * on supported platforms (Linux and macOS with AMD64/ARM64).
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.1.0
  */
 public class NativeTimeJNI {
     

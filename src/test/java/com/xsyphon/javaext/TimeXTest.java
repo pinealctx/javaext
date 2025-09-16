@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests correctness, performance characteristics, and platform compatibility.
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.1.0
  */
 @Execution(ExecutionMode.CONCURRENT)
 class TimeXTest {

@@ -14,7 +14,7 @@ import java.util.List;
  * using Java Native Access (JNA).
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.1.0
  */
 public class NativeTimeJNA {
     

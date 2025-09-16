@@ -8,7 +8,7 @@ import java.time.Instant;
  * with different performance characteristics and platform compatibility.
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.1.0
  */
 public class TimeX {
     

@@ -11,7 +11,7 @@ import java.util.function.Supplier;
  * and reports average execution time in nanoseconds.
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.1.0
  */
 public class PerformanceTest {
     
