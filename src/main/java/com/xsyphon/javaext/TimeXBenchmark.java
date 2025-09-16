@@ -1,359 +1,262 @@
 package com.xsyphon.javaext;
 
 /**
- * TimeX 性能基准测试和功能演示主类
+ * TimeX Performance Benchmark and Feature Demonstration Main Class
  * 
- * 这个类提供了完整的性能测试套件，可以独立运行来验证
- * TimeX 库在不同平台上的性能表现和功能完整性。
+ * This class provides a comprehensive performance testing suite that can run independently
+ * to verify TimeX library performance and functionality completeness across different platforms.
  * 
- * 使用方法:
- * java -jar javaext-time-1.0.0.jar
+ * Usage:
+ * java -jar javaext-time-1.2.0.jar
  * 
- * 或者:
- * java -cp javaext-time-1.0.0.jar com.xsyphon.javaext.TimeXBenchmark
+ * Or:
+ * java -cp javaext-time-1.2.0.jar com.xsyphon.javaext.TimeXBenchmark
  */
 public class TimeXBenchmark {
 
     /**
-     * 主函数 - 运行完整的性能测试和功能验证
+     * Main function - Run comprehensive performance testing and functionality verification
      */
     public static void main(String[] args) {
-        System.out.println("=== TimeX 跨平台高性能时间戳库 ===");
-        System.out.println("版本: 1.0.0");
-        System.out.println("项目地址: https://github.com/pinealctx/javaext");
+        System.out.println("=== TimeX Cross-Platform High-Performance Timestamp Library ===");
+        System.out.println("Version: 1.2.0");
+        System.out.println("Project URL: https://github.com/pinealctx/javaext");
         System.out.println();
         
-        // 显示平台信息
+        // Display platform information
         displayPlatformInfo();
         
-        // 库加载状态检查
+        // Library loading status check
         checkLibraryLoadStatus();
         
-        // 运行性能基准测试
-        runPerformanceBenchmark();
+        // Run performance benchmarks
+        runPerformanceBenchmarks();
         
-        // 精度对比测试
-        runAccuracyComparison();
+        // Run precision comparison tests
+        runPrecisionComparison();
         
-        // 功能性测试
-        runFunctionalTests();
+        // Feature demonstration
+        runFeatureDemonstration();
         
-        System.out.println("\n=== 测试完成 ===");
-        System.out.println("TimeX 库已成功验证所有功能!");
+        System.out.println("\n=== Benchmark Complete ===");
     }
 
     /**
-     * 显示平台信息
+     * Display system and platform information
      */
     private static void displayPlatformInfo() {
-        System.out.println("=== 平台信息 ===");
+        System.out.println("=== Platform Information ===");
         String osName = System.getProperty("os.name");
         String osArch = System.getProperty("os.arch");
         String javaVersion = System.getProperty("java.version");
         String javaVendor = System.getProperty("java.vendor");
         
-        System.out.println("操作系统: " + osName);
-        System.out.println("系统架构: " + osArch);
-        System.out.println("Java版本: " + javaVersion);
-        System.out.println("Java厂商: " + javaVendor);
+        System.out.println("Operating System: " + osName);
+        System.out.println("Architecture: " + osArch);
+        System.out.println("Java Version: " + javaVersion);
+        System.out.println("Java Vendor: " + javaVendor);
         
-        // 确定期望的本地库
-        String platform = osName.toLowerCase().contains("mac") ? "macos" : "linux";
-        String arch = osArch.contains("aarch64") || osArch.contains("arm") ? "arm64" : "amd64";
+        // Determine expected native library name based on platform
+        String platform = osName.toLowerCase().contains("mac") ? "macos" : 
+                         osName.toLowerCase().contains("linux") ? "linux" : "unknown";
+        String arch = osArch.toLowerCase().contains("aarch64") || osArch.toLowerCase().contains("arm") ? "arm64" : "amd64";
         String libExt = platform.equals("macos") ? "dylib" : "so";
-        String expectedLib = String.format("native/%s/%s/libjavaext_time.%s", platform, arch, libExt);
+        String expectedLib = String.format("/native/%s/%s/libjavaext_time.%s", platform, arch, libExt);
         
-        System.out.println("期望库路径: " + expectedLib);
+        System.out.println("Expected Native Library: " + expectedLib);
         System.out.println();
     }
 
     /**
-     * 检查本地库加载状态
+     * Check native library loading status
      */
     private static void checkLibraryLoadStatus() {
-        System.out.println("=== 本地库加载状态 ===");
+        System.out.println("=== Native Library Status ===");
         
-        // 检查JNI库
-        boolean jniAvailable = false;
-        try {
-            long timestamp = TimeX.unixNanoJNI();
-            jniAvailable = timestamp > 0;
-            System.out.println("✅ JNI库加载成功 (timestamp: " + timestamp + ")");
-        } catch (Exception e) {
-            System.out.println("❌ JNI库不可用: " + e.getMessage());
+        // Check JNI library
+        long jniTime = TimeX.unixNanoJNI();
+        if (jniTime != -1) {
+            System.out.println("✅ JNI Library: Successfully loaded and functional");
+            System.out.println("   Sample timestamp: " + jniTime);
+        } else {
+            System.out.println("❌ JNI Library: Failed to load or not available");
         }
         
-        // 检查JNA库
-        boolean jnaAvailable = false;
-        try {
-            long timestamp = TimeX.unixNanoJNA();
-            jnaAvailable = timestamp > 0;
-            System.out.println("✅ JNA库加载成功 (timestamp: " + timestamp + ")");
-        } catch (Exception e) {
-            System.out.println("❌ JNA库不可用: " + e.getMessage());
+        // Check JNA library
+        long jnaTime = TimeX.unixNanoJNA();
+        if (jnaTime != -1) {
+            System.out.println("✅ JNA Library: Successfully loaded and functional");
+            System.out.println("   Sample timestamp: " + jnaTime);
+        } else {
+            System.out.println("❌ JNA Library: Failed to load or not available");
         }
         
-        if (!jniAvailable && !jnaAvailable) {
-            System.out.println("⚠️ 警告: 本地库均不可用，将使用Java实现");
-        }
         System.out.println();
     }
 
     /**
-     * 运行性能基准测试
+     * Run performance benchmarks for all timestamp methods
      */
-    private static void runPerformanceBenchmark() {
-        System.out.println("=== 性能基准测试 ===");
+    private static void runPerformanceBenchmarks() {
+        System.out.println("=== Performance Benchmark Tests ===");
+        final int iterations = 100_000; // 100K iterations for quick testing
         
-        final int warmupIterations = 100_000;
-        final int testIterations = 1_000_000;
-        
-        // JVM预热
-        System.out.println("正在预热JVM (" + warmupIterations + " 次迭代)...");
-        for (int i = 0; i < warmupIterations; i++) {
+        System.out.println("Warming up JVM...");
+        // JVM warmup
+        for (int i = 0; i < 50_000; i++) {
             TimeX.unixNanoInstant();
             TimeX.unixNanoHybrid();
             TimeX.unixNanoMilliPrecision();
             TimeX.unixNanoOptimized();
-            // 本地方法调用（如果可用）
-            try {
-                TimeX.unixNanoJNI();
-            } catch (Exception ignored) {}
-            try {
-                TimeX.unixNanoJNA();
-            } catch (Exception ignored) {}
+            TimeX.unixNanoJNI();
+            TimeX.unixNanoJNA();
         }
-        System.out.println("预热完成\n");
+        System.out.println("Warmup complete\n");
 
-        System.out.println("开始性能测试 (" + testIterations + " 次迭代):");
-        System.out.println("方法名称          总耗时(ms)  平均耗时(ns)  吞吐量(ops/sec)");
-        System.out.println("--------------------------------------------------------");
+        System.out.printf("%-20s %10s %12s %15s\n", "Method", "Total(ms)", "Avg(ns)", "Throughput(ops/s)");
+        System.out.println("─".repeat(70));
+
+        // Test each method
+        testMethod("Instant.now()", iterations, TimeX::unixNanoInstant);
+        testMethod("System.hybrid", iterations, TimeX::unixNanoHybrid);
+        testMethod("Millis precision", iterations, TimeX::unixNanoMilliPrecision);
+        testMethod("Optimized", iterations, TimeX::unixNanoOptimized);
         
-        // 测试各种方法
-        testMethod("Instant方法", testIterations, TimeX::unixNanoInstant);
-        testMethod("混合方法", testIterations, TimeX::unixNanoHybrid);
-        testMethod("毫秒精度方法", testIterations, TimeX::unixNanoMilliPrecision);
-        testMethod("优化方法", testIterations, TimeX::unixNanoOptimized);
+        // Test native methods
+        testMethod("JNI Native", iterations, TimeX::unixNanoJNI);
         
-        // JNI方法（如果可用）
-        testMethodSafe("JNI方法", testIterations, () -> {
-            try {
-                return TimeX.unixNanoJNI();
-            } catch (Exception e) {
-                throw new RuntimeException("JNI不可用");
-            }
-        });
-        
-        // JNA方法（如果可用）
-        testMethodSafe("JNA方法", testIterations, () -> {
-            try {
-                return TimeX.unixNanoJNA();
-            } catch (Exception e) {
-                throw new RuntimeException("JNA不可用");
-            }
-        });
+        testMethod("JNA Native", iterations, TimeX::unixNanoJNA);
         
         System.out.println();
     }
 
     /**
-     * 精度对比测试
-     */
-    private static void runAccuracyComparison() {
-        System.out.println("=== 精度对比测试 ===");
-        
-        // 获取基准时间戳
-        long baseTime = TimeX.unixNanoInstant();
-        
-        System.out.println("以Instant方法作为基准进行比较:");
-        System.out.printf("Instant方法:      %d (基准)\n", baseTime);
-        
-        // 测试其他方法与基准的差异
-        compareMethod("混合方法", TimeX::unixNanoHybrid, baseTime);
-        compareMethod("毫秒精度方法", TimeX::unixNanoMilliPrecision, baseTime);
-        compareMethod("优化方法", TimeX::unixNanoOptimized, baseTime);
-        
-        // 本地方法比较
-        compareMethodSafe("JNI方法", TimeX::unixNanoJNI, baseTime);
-        compareMethodSafe("JNA方法", TimeX::unixNanoJNA, baseTime);
-        
-        System.out.println();
-    }
-
-    /**
-     * 功能性测试
-     */
-    private static void runFunctionalTests() {
-        System.out.println("=== 功能性测试 ===");
-        
-        // 时间戳单调性测试
-        System.out.println("1. 时间戳单调性测试:");
-        testMonotonicity("Instant方法", TimeX::unixNanoInstant);
-        testMonotonicity("混合方法", TimeX::unixNanoHybrid);
-        testMonotonicity("优化方法", TimeX::unixNanoOptimized);
-        
-        // 精度测试
-        System.out.println("\n2. 精度测试:");
-        testPrecision();
-        
-        // 多线程安全性测试
-        System.out.println("\n3. 多线程安全性测试:");
-        testThreadSafety();
-        
-        System.out.println();
-    }
-
-    /**
-     * 测试方法性能
+     * Test method performance
      */
     private static void testMethod(String methodName, int iterations, TimeSupplier supplier) {
-        System.gc(); // 建议垃圾回收
+        System.gc(); // Suggest garbage collection
         
         long startTime = System.nanoTime();
-        long sum = 0; // 防止JIT优化
-        
         for (int i = 0; i < iterations; i++) {
-            sum += supplier.get();
+            supplier.get();
         }
-        
         long endTime = System.nanoTime();
+        
         long totalTime = endTime - startTime;
         double avgTime = (double) totalTime / iterations;
         double throughput = 1_000_000_000.0 / avgTime;
         
-        System.out.printf("%-15s %8.2f    %8.2f      %12.0f\n", 
+        System.out.printf("%-20s %10.2f %12.2f %15.0f\n", 
                 methodName, totalTime / 1_000_000.0, avgTime, throughput);
+    }
+
+    /**
+     * Run precision comparison tests
+     */
+    private static void runPrecisionComparison() {
+        System.out.println("=== Precision Comparison Test ===");
         
-        // 使用sum防止优化
-        if (sum == 0) System.out.print("");
-    }
-
-    /**
-     * 安全地测试方法（处理异常）
-     */
-    private static void testMethodSafe(String methodName, int iterations, TimeSupplier supplier) {
-        try {
-            testMethod(methodName, iterations, supplier);
-        } catch (Exception e) {
-            System.out.printf("%-15s %8s    %8s      %12s (不可用: %s)\n", 
-                    methodName, "N/A", "N/A", "N/A", e.getMessage().split(":")[0]);
-        }
-    }
-
-    /**
-     * 比较方法与基准的精度差异
-     */
-    private static void compareMethod(String methodName, TimeSupplier supplier, long baseline) {
-        long timestamp = supplier.get();
-        long diff = timestamp - baseline;
-        System.out.printf("%-15s: %d (差值: %+d ns)\n", methodName, timestamp, diff);
-    }
-
-    /**
-     * 安全地比较方法
-     */
-    private static void compareMethodSafe(String methodName, TimeSupplier supplier, long baseline) {
-        try {
-            compareMethod(methodName, supplier, baseline);
-        } catch (Exception e) {
-            System.out.printf("%-15s: 不可用 (%s)\n", methodName, e.getMessage().split(":")[0]);
-        }
-    }
-
-    /**
-     * 测试时间戳单调性
-     */
-    private static void testMonotonicity(String methodName, TimeSupplier supplier) {
-        long prev = supplier.get();
-        int violations = 0;
+        // Take multiple samples for comparison
+        long instantVsHybrid = TimeX.unixNanoInstant();
+        long hybrid = TimeX.unixNanoHybrid();
+        long instantVsMilli = TimeX.unixNanoInstant();
+        long millis = TimeX.unixNanoMilliPrecision();
+        long instantVsOptimized = TimeX.unixNanoInstant();
+        long optimized = TimeX.unixNanoOptimized();
         
-        for (int i = 0; i < 10000; i++) {
-            long current = supplier.get();
-            if (current < prev) {
-                violations++;
+        long instantVsJNI = TimeX.unixNanoInstant();
+        long jni = TimeX.unixNanoJNI();
+        long instantVsJNA = TimeX.unixNanoInstant();
+        long jna = TimeX.unixNanoJNA();
+        
+        // Check if native methods returned -1 (error)
+        if (jni == -1) {
+            System.out.println("JNI method not available");
+            jni = instantVsJNI; // Use fallback value for comparison
+        }
+        
+        if (jna == -1) {
+            System.out.println("JNA method not available");
+            jna = instantVsJNA; // Use fallback value for comparison
+        }
+
+        System.out.printf("%-18s: %d\n", "Instant method", instantVsHybrid);
+        System.out.printf("%-18s: %d (diff: %+d ns)\n", "Hybrid method", hybrid, hybrid - instantVsHybrid);
+        System.out.printf("%-18s: %d (diff: %+d ns)\n", "Millis precision", millis, millis - instantVsMilli);
+        System.out.printf("%-18s: %d (diff: %+d ns)\n", "Optimized", optimized, optimized - instantVsOptimized);
+        System.out.printf("%-18s: %d (diff: %+d ns)\n", "JNI native", jni, jni - instantVsJNI);
+        System.out.printf("%-18s: %d (diff: %+d ns)\n", "JNA native", jna, jna - instantVsJNA);
+        
+        System.out.println();
+    }
+
+    /**
+     * Demonstrate library features
+     */
+    private static void runFeatureDemonstration() {
+        System.out.println("=== Feature Demonstration ===");
+        
+        // Time interval measurement using the main unixNano method
+        System.out.println("Time interval measurement test:");
+        long start = TimeX.unixNanoOptimized(); // Use optimized as default
+        
+        try {
+            Thread.sleep(10); // Sleep 10ms
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        long end = TimeX.unixNanoOptimized();
+        long elapsed = end - start;
+        
+        System.out.printf("Measured interval: %d ns (%.2f ms)\n", elapsed, elapsed / 1_000_000.0);
+        System.out.printf("Unix timestamps: start=%d, end=%d\n", start, end);
+        
+        // High frequency sampling test
+        System.out.println("\nHigh frequency sampling test (1000 samples):");
+        long[] samples = new long[1000];
+        long samplingStart = System.nanoTime();
+        
+        for (int i = 0; i < samples.length; i++) {
+            samples[i] = TimeX.unixNanoOptimized();
+        }
+        
+        long samplingEnd = System.nanoTime();
+        long samplingDuration = samplingEnd - samplingStart;
+        
+        // Calculate statistics
+        long minInterval = Long.MAX_VALUE;
+        long maxInterval = 0;
+        long totalInterval = 0;
+        int validIntervals = 0;
+        
+        for (int i = 1; i < samples.length; i++) {
+            long interval = samples[i] - samples[i-1];
+            if (interval > 0) { // Only count positive intervals
+                minInterval = Math.min(minInterval, interval);
+                maxInterval = Math.max(maxInterval, interval);
+                totalInterval += interval;
+                validIntervals++;
             }
-            prev = current;
         }
         
-        if (violations == 0) {
-            System.out.println("  ✅ " + methodName + ": 时间戳严格单调递增");
+        if (validIntervals > 0) {
+            double avgInterval = (double) totalInterval / validIntervals;
+            double samplingRate = 1_000_000_000.0 / avgInterval;
+            
+            System.out.printf("Sampling duration: %.2f ms\n", samplingDuration / 1_000_000.0);
+            System.out.printf("Average sampling rate: %.0f samples/sec\n", samplingRate);
+            System.out.printf("Interval stats: min=%d ns, max=%d ns, avg=%.1f ns\n", 
+                    minInterval, maxInterval, avgInterval);
         } else {
-            System.out.println("  ⚠️ " + methodName + ": 发现 " + violations + " 次单调性违反");
+            System.out.println("Warning: No valid intervals detected (clock resolution too low)");
         }
+        
+        System.out.println();
     }
 
     /**
-     * 测试时间戳精度
-     */
-    private static void testPrecision() {
-        long start = System.nanoTime();
-        try {
-            Thread.sleep(1); // 睡眠1毫秒
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        long end = System.nanoTime();
-        long javaDiff = end - start;
-        
-        long timeXStart = TimeX.unixNanoOptimized();
-        try {
-            Thread.sleep(1);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        long timeXEnd = TimeX.unixNanoOptimized();
-        long timeXDiff = timeXEnd - timeXStart;
-        
-        System.out.printf("  System.nanoTime() 测量: %d ns (%.2f ms)\n", 
-                javaDiff, javaDiff / 1_000_000.0);
-        System.out.printf("  TimeX.unixNanoOptimized() 测量: %d ns (%.2f ms)\n", 
-                timeXDiff, timeXDiff / 1_000_000.0);
-        System.out.printf("  精度差异: %d ns\n", Math.abs(timeXDiff - javaDiff));
-    }
-
-    /**
-     * 测试多线程安全性
-     */
-    private static void testThreadSafety() {
-        final int threadCount = 4;
-        final int iterationsPerThread = 10000;
-        Thread[] threads = new Thread[threadCount];
-        
-        long startTime = System.currentTimeMillis();
-        
-        for (int i = 0; i < threadCount; i++) {
-            threads[i] = new Thread(() -> {
-                for (int j = 0; j < iterationsPerThread; j++) {
-                    TimeX.unixNanoOptimized();
-                    TimeX.unixNanoHybrid();
-                    // 测试本地方法（如果可用）
-                    try {
-                        TimeX.unixNanoJNI();
-                    } catch (Exception ignored) {}
-                }
-            });
-            threads[i].start();
-        }
-        
-        // 等待所有线程完成
-        for (Thread thread : threads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-        }
-        
-        long endTime = System.currentTimeMillis();
-        long totalOperations = (long) threadCount * iterationsPerThread;
-        
-        System.out.printf("  ✅ 多线程测试完成: %d 个线程, 总计 %d 次操作, 耗时 %d ms\n", 
-                threadCount, totalOperations, endTime - startTime);
-    }
-
-    /**
-     * 函数式接口用于性能测试
+     * Functional interface for performance testing
      */
     @FunctionalInterface
     private interface TimeSupplier {

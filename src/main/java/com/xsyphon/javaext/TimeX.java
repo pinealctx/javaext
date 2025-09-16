@@ -8,7 +8,7 @@ import java.time.Instant;
  * with different performance characteristics and platform compatibility.
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.2.0
  */
 public class TimeX {
     
@@ -53,33 +53,24 @@ public class TimeX {
     }
     
     /**
-     * Get Unix nanosecond timestamp using JNI native clock_gettime call.
-     * Falls back to Instant method on unsupported platforms.
+     * JNI method: High-performance native call (fastest if native libs available)
+     * Uses platform-optimized native functions:
+     * - Linux: clock_gettime(CLOCK_REALTIME) with gettimeofday fallback
+     * - macOS: clock_gettime -> gettimeofday fallback
      * 
-     * @return Unix nanosecond timestamp
+     * @return Unix timestamp in nanoseconds, or -1 if native call fails
      */
     public static long unixNanoJNI() {
-        try {
-            return NativeTimeJNI.clockGetTime();
-        } catch (Exception e) {
-            // Fallback to Instant method on error
-            return unixNanoInstant();
-        }
+        return NativeTimeJNI.clockGetTime();
     }
     
     /**
      * Get Unix nanosecond timestamp using JNA native library call.
-     * Falls back to Instant method on unsupported platforms.
      * 
-     * @return Unix nanosecond timestamp
+     * @return Unix nanosecond timestamp, or -1 if native call fails
      */
     public static long unixNanoJNA() {
-        try {
-            return NativeTimeJNA.clockGetTime();
-        } catch (Exception e) {
-            // Fallback to Instant method on error
-            return unixNanoInstant();
-        }
+        return NativeTimeJNA.clockGetTime();
     }
     
     /**

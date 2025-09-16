@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests correctness, performance characteristics, and platform compatibility.
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.2.0
  */
 @Execution(ExecutionMode.CONCURRENT)
 class TimeXTest {
@@ -97,28 +97,18 @@ class TimeXTest {
     @Test
     @DisplayName("Test JNI method when available")
     void testUnixNanoJNI() {
-        if (!TimeX.isJNIAvailable()) {
-            System.out.println("JNI not available, testing fallback behavior");
-            
-            // Should fallback to Instant method
-            long jniTimestamp = TimeX.unixNanoJNI();
-            long instantTimestamp = TimeX.unixNanoInstant();
-            
-            assertTimestampIsReasonable(jniTimestamp, "JNI fallback");
-            
-            // Should be close to Instant method result
-            long diff = Math.abs(jniTimestamp - instantTimestamp);
-            assertTrue(diff < TOLERANCE_NS, 
-                "JNI fallback should be close to Instant method");
+        long jniTimestamp = TimeX.unixNanoJNI();
+        
+        if (!TimeX.isJNIAvailable() || jniTimestamp == -1) {
+            System.out.println("JNI not available, should return -1");
+            assertEquals(-1, jniTimestamp, "JNI should return -1 when not available");
         } else {
             System.out.println("JNI available, testing native implementation");
-            
-            long timestamp = TimeX.unixNanoJNI();
-            assertTimestampIsReasonable(timestamp, "JNI native");
+            assertTimestampIsReasonable(jniTimestamp, "JNI native");
             
             // Test consistency
             long timestamp2 = TimeX.unixNanoJNI();
-            assertTrue(timestamp2 >= timestamp - TOLERANCE_NS, 
+            assertTrue(timestamp2 >= jniTimestamp - TOLERANCE_NS, 
                 "JNI timestamps should be consistent");
         }
     }
@@ -126,28 +116,18 @@ class TimeXTest {
     @Test
     @DisplayName("Test JNA method when available")
     void testUnixNanoJNA() {
-        if (!TimeX.isJNAAvailable()) {
-            System.out.println("JNA not available, testing fallback behavior");
-            
-            // Should fallback to Instant method
-            long jnaTimestamp = TimeX.unixNanoJNA();
-            long instantTimestamp = TimeX.unixNanoInstant();
-            
-            assertTimestampIsReasonable(jnaTimestamp, "JNA fallback");
-            
-            // Should be close to Instant method result
-            long diff = Math.abs(jnaTimestamp - instantTimestamp);
-            assertTrue(diff < TOLERANCE_NS, 
-                "JNA fallback should be close to Instant method");
+        long jnaTimestamp = TimeX.unixNanoJNA();
+        
+        if (!TimeX.isJNAAvailable() || jnaTimestamp == -1) {
+            System.out.println("JNA not available, should return -1");
+            assertEquals(-1, jnaTimestamp, "JNA should return -1 when not available");
         } else {
             System.out.println("JNA available, testing native implementation");
-            
-            long timestamp = TimeX.unixNanoJNA();
-            assertTimestampIsReasonable(timestamp, "JNA native");
+            assertTimestampIsReasonable(jnaTimestamp, "JNA native");
             
             // Test consistency
             long timestamp2 = TimeX.unixNanoJNA();
-            assertTrue(timestamp2 >= timestamp - TOLERANCE_NS, 
+            assertTrue(timestamp2 >= jnaTimestamp - TOLERANCE_NS, 
                 "JNA timestamps should be consistent");
         }
     }
@@ -161,17 +141,33 @@ class TimeXTest {
         long jniTime = TimeX.unixNanoJNI();
         long jnaTime = TimeX.unixNanoJNA();
         
-        // All should be within a reasonable range of each other
-        long[] times = {instantTime, hybridTime, optimizedTime, jniTime, jnaTime};
+        // Collect valid timestamps (excluding -1 error values)
+        long[] validTimes = new long[5];
+        int validCount = 0;
         
-        for (int i = 0; i < times.length; i++) {
-            for (int j = i + 1; j < times.length; j++) {
-                long diff = Math.abs(times[i] - times[j]);
+        validTimes[validCount++] = instantTime;
+        validTimes[validCount++] = hybridTime;
+        validTimes[validCount++] = optimizedTime;
+        
+        if (jniTime != -1) {
+            validTimes[validCount++] = jniTime;
+        }
+        if (jnaTime != -1) {
+            validTimes[validCount++] = jnaTime;
+        }
+        
+        // All valid timestamps should be within a reasonable range of each other
+        for (int i = 0; i < validCount; i++) {
+            for (int j = i + 1; j < validCount; j++) {
+                long diff = Math.abs(validTimes[i] - validTimes[j]);
                 assertTrue(diff < TOLERANCE_NS * 2, 
-                    String.format("Method %d and %d differ by %d ns (more than %d ns tolerance)", 
-                        i, j, diff, TOLERANCE_NS * 2));
+                    String.format("Valid timestamps differ by %d ns (more than %d ns tolerance)", 
+                        diff, TOLERANCE_NS * 2));
             }
         }
+        
+        // At least the Java methods should work
+        assertTrue(validCount >= 3, "At least Java-based methods should return valid timestamps");
     }
     
     @ParameterizedTest

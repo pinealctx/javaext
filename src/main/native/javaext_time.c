@@ -1,9 +1,15 @@
 #define _POSIX_C_SOURCE 200809L
 #include <jni.h>
-#include <time.h>
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
+
+// Platform-specific headers
+#if __APPLE__
+    #include <time.h>
+    #include <mach/mach_time.h>
+    #include <sys/time.h>
+#else
+    #include <time.h>
+    #include <sys/time.h>
+#endif
 
 /* Header for class com_xsyphon_javaext_NativeTimeJNI */
 #ifndef _Included_com_xsyphon_javaext_NativeTimeJNI
@@ -14,30 +20,51 @@ extern "C" {
 #endif
 
 /*
- * Class:     com_xsyphon_javaext_NativeTimeJNI
- * Method:    clockGetTimeNative
- * Signature: ()J
+ * High-performance Unix nanosecond timestamp
+ * Optimized for Linux (x86_64/ARM64) and macOS (Intel/ARM64)
+ * Returns -1 on failure
  */
 JNIEXPORT jlong JNICALL Java_com_xsyphon_javaext_NativeTimeJNI_clockGetTimeNative
   (JNIEnv *env, jclass cls) {
     
+#if __APPLE__
+    // macOS optimized implementation
     struct timespec ts;
     
-    // Use clock_gettime with CLOCK_REALTIME for Unix timestamp
-    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
-        // Throw RuntimeException if clock_gettime fails
-        jclass exceptionClass = (*env)->FindClass(env, "java/lang/RuntimeException");
-        if (exceptionClass != NULL) {
-            char errorMsg[256];
-            snprintf(errorMsg, sizeof(errorMsg), "clock_gettime failed: %s", strerror(errno));
-            (*env)->ThrowNew(env, exceptionClass, errorMsg);
+    // Try clock_gettime first (macOS 10.12+)
+    #ifdef CLOCK_REALTIME
+        if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
+            return (jlong)((uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec);
         }
-        return 0;
+    #endif
+    
+    // Fallback to gettimeofday (microsecond precision)
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) == 0) {
+        return (jlong)((uint64_t)tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL);
     }
     
-    // Convert to nanoseconds since Unix epoch
-    jlong nanos = (jlong)ts.tv_sec * 1000000000LL + (jlong)ts.tv_nsec;
-    return nanos;
+    // Return -1 on failure
+    return -1;
+    
+#else
+    // Linux optimized implementation (x86_64/ARM64)
+    struct timespec ts;
+    
+    // Fast path: clock_gettime with CLOCK_REALTIME
+    if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
+        return (jlong)((uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec);
+    }
+    
+    // Fallback to gettimeofday
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) == 0) {
+        return (jlong)((uint64_t)tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL);
+    }
+    
+    // Return -1 on failure
+    return -1;
+#endif
 }
 
 #ifdef __cplusplus

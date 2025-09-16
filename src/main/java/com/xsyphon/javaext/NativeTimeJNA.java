@@ -14,7 +14,7 @@ import java.util.List;
  * using Java Native Access (JNA).
  * 
  * @author pinealctx
- * @version 1.0.0
+ * @version 1.2.0
  */
 public class NativeTimeJNA {
     
@@ -81,19 +81,18 @@ public class NativeTimeJNA {
     /**
      * Get Unix nanosecond timestamp using JNA clock_gettime call.
      * 
-     * @return Unix nanosecond timestamp
-     * @throws RuntimeException if call fails
+     * @return Unix nanosecond timestamp, or -1 if call fails
      */
     public static long clockGetTime() {
         if (!available) {
-            throw new RuntimeException("JNA library not available: " + loadError);
+            return -1; // JNA library not available
         }
         
         TimeSpec timeSpec = new TimeSpec();
         int result = cLibrary.clock_gettime(CLOCK_REALTIME, timeSpec);
         
         if (result != 0) {
-            throw new RuntimeException("clock_gettime failed with result: " + result);
+            return -1; // clock_gettime failed
         }
         
         return timeSpec.tv_sec * 1_000_000_000L + timeSpec.tv_nsec;
@@ -103,19 +102,18 @@ public class NativeTimeJNA {
      * Get monotonic nanosecond timestamp using JNA clock_gettime call.
      * This provides a monotonic clock that is not affected by system time changes.
      * 
-     * @return monotonic nanosecond timestamp
-     * @throws RuntimeException if call fails
+     * @return monotonic nanosecond timestamp, or -1 if call fails
      */
     public static long clockGetTimeMonotonic() {
         if (!available) {
-            throw new RuntimeException("JNA library not available: " + loadError);
+            return -1; // JNA library not available
         }
         
         TimeSpec timeSpec = new TimeSpec();
         int result = cLibrary.clock_gettime(CLOCK_MONOTONIC, timeSpec);
         
         if (result != 0) {
-            throw new RuntimeException("clock_gettime(CLOCK_MONOTONIC) failed with result: " + result);
+            return -1; // clock_gettime failed
         }
         
         return timeSpec.tv_sec * 1_000_000_000L + timeSpec.tv_nsec;

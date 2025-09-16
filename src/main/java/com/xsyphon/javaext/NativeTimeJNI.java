@@ -12,7 +12,7 @@ import java.nio.file.StandardCopyOption;
  * on supported platforms (Linux and macOS with AMD64/ARM64).
  * 
  * @author pinealctx
- * @version 1.0.0
+  * @version 1.2.0
  */
 public class NativeTimeJNI {
     
@@ -149,12 +149,11 @@ public class NativeTimeJNI {
     /**
      * Native method to get Unix nanosecond timestamp using clock_gettime.
      * 
-     * @return Unix nanosecond timestamp
-     * @throws RuntimeException if native call fails
+     * @return Unix nanosecond timestamp, or -1 if native library not loaded or call fails
      */
     public static long clockGetTime() {
         if (!libraryLoaded) {
-            throw new RuntimeException("Native library not loaded: " + loadError);
+            return -1; // Library not loaded, return error indicator
         }
         return clockGetTimeNative();
     }
