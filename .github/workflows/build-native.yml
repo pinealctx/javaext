@@ -204,11 +204,11 @@ jobs:
 
     - name: Build and test with Maven
       run: |
-        mvn clean test -Pskip-native
+        mvn clean test -DskipNativeBuild=true
 
     - name: Run performance test
       run: |
-        mvn exec:java -Dexec.mainClass="com.xsyphon.javaext.PerformanceTest" -Pskip-native
+        mvn exec:java -Dexec.mainClass="com.xsyphon.javaext.PerformanceTest" -DskipNativeBuild=true
 
   # Create release artifacts
   create-release-artifact:
@@ -242,29 +242,35 @@ jobs:
         mkdir -p src/main/resources/native/macos/amd64
         mkdir -p src/main/resources/native/macos/arm64
         
-        # Copy libraries based on artifact names
-        if [ -f "downloaded-libs/native-lib-linux-amd64" ]; then
-          cp downloaded-libs/native-lib-linux-amd64 src/main/resources/native/linux/amd64/libjavaext_time.so
+        # Debug: Show what we downloaded
+        echo "Downloaded artifacts:"
+        find downloaded-libs/ -type f -exec ls -la {} \;
+        
+        # Copy libraries based on artifact structure
+        # Note: actions/download-artifact creates subdirectories for each artifact
+        if [ -f "downloaded-libs/native-lib-linux-amd64/libjavaext_time.so" ]; then
+          cp downloaded-libs/native-lib-linux-amd64/libjavaext_time.so src/main/resources/native/linux/amd64/
         fi
         
-        if [ -f "downloaded-libs/native-lib-linux-arm64" ]; then
-          cp downloaded-libs/native-lib-linux-arm64 src/main/resources/native/linux/arm64/libjavaext_time.so
+        if [ -f "downloaded-libs/native-lib-linux-arm64/libjavaext_time.so" ]; then
+          cp downloaded-libs/native-lib-linux-arm64/libjavaext_time.so src/main/resources/native/linux/arm64/
         fi
         
-        if [ -f "downloaded-libs/native-lib-macos-amd64" ]; then
-          cp downloaded-libs/native-lib-macos-amd64 src/main/resources/native/macos/amd64/libjavaext_time.dylib
+        if [ -f "downloaded-libs/native-lib-macos-amd64/libjavaext_time.dylib" ]; then
+          cp downloaded-libs/native-lib-macos-amd64/libjavaext_time.dylib src/main/resources/native/macos/amd64/
         fi
         
-        if [ -f "downloaded-libs/native-lib-macos-arm64" ]; then
-          cp downloaded-libs/native-lib-macos-arm64 src/main/resources/native/macos/arm64/libjavaext_time.dylib
+        if [ -f "downloaded-libs/native-lib-macos-arm64/libjavaext_time.dylib" ]; then
+          cp downloaded-libs/native-lib-macos-arm64/libjavaext_time.dylib src/main/resources/native/macos/arm64/
         fi
         
         # Verify all libraries are in place
+        echo "Libraries in resources directory:"
         find src/main/resources/native/ -type f -exec ls -la {} \;
 
     - name: Build final JAR with all native libraries
       run: |
-        mvn clean package -Pskip-native
+        mvn clean package -DskipNativeBuild=true
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
