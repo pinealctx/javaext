@@ -68,6 +68,8 @@ copyNativeLibs.dependsOn buildNative
 
 // Configure JAR with Main Class
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
     manifest {
         attributes(
             'Main-Class': 'com.xsyphon.javaext.TimeXBenchmark',
@@ -77,11 +79,6 @@ jar {
             'Built-By': System.getProperty('user.name'),
             'Built-Date': new Date().toString()
         )
-    }
-    
-    // Include native libraries in the JAR
-    from('build/resources/main') {
-        include 'native/**'
     }
 }
 
