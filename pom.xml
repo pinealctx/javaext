@@ -98,6 +98,29 @@
                 </configuration>
             </plugin>
 
+            <!-- Maven JAR Plugin - Configure Main Class -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.xsyphon.javaext.TimeXBenchmark</mainClass>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                        </manifest>
+                        <manifestEntries>
+                            <Implementation-Title>${project.name}</Implementation-Title>
+                            <Implementation-Version>${project.version}</Implementation-Version>
+                            <Implementation-Vendor>XSyphon</Implementation-Vendor>
+                            <Built-By>${user.name}</Built-By>
+                            <Built-Date>${maven.build.timestamp}</Built-Date>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+
             <!-- Maven Surefire Plugin for unit tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

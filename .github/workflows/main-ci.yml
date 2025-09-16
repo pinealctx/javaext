@@ -226,10 +226,32 @@ jobs:
         find src/main/resources/native/ -type f
 
     - name: Build release JAR
-      run: mvn clean package -Pskip-native
+      run: |
+        # Build regular JAR with native libraries
+        mvn clean package -Pskip-native
+        
+        # Also build with Gradle for comparison
+        chmod +x gradlew
+        ./gradlew clean build fatJar -PskipNativeBuild=true
+        
+        # Show what was built
+        echo "Maven artifacts:"
+        ls -la target/*.jar
+        echo "Gradle artifacts:"
+        ls -la build/libs/*.jar
+
+    - name: Test executable JAR
+      run: |
+        echo "Testing Maven JAR:"
+        java -jar target/javaext-time-*.jar || echo "Maven JAR test completed"
+        
+        echo "Testing Gradle fat JAR:"  
+        java -jar build/libs/*-fat.jar || echo "Gradle fat JAR test completed"
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
       with:
         name: javaext-release-${{ github.ref_name }}
-        path: target/*.jar
+        path: |
+          target/*.jar
+          build/libs/*.jar

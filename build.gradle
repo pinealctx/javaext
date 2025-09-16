@@ -66,6 +66,47 @@ task copyNativeLibs(type: Copy) {
 processResources.dependsOn copyNativeLibs
 copyNativeLibs.dependsOn buildNative
 
+// Configure JAR with Main Class
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'com.xsyphon.javaext.TimeXBenchmark',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'XSyphon',
+            'Built-By': System.getProperty('user.name'),
+            'Built-Date': new Date().toString()
+        )
+    }
+    
+    // Include native libraries in the JAR
+    from('build/resources/main') {
+        include 'native/**'
+    }
+}
+
+// Fat JAR task for standalone execution
+task fatJar(type: Jar) {
+    group = 'build'
+    description = 'Create a fat JAR with all dependencies'
+    archiveClassifier = 'fat'
+    
+    manifest {
+        attributes(
+            'Main-Class': 'com.xsyphon.javaext.TimeXBenchmark',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'XSyphon'
+        )
+    }
+    
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+// Make fatJar depend on jar
+fatJar.dependsOn jar
+
 // Jacoco coverage
 jacoco {
     toolVersion = "0.8.8"
