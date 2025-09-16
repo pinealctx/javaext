@@ -166,9 +166,9 @@ jobs:
     - name: Download all native libraries
       uses: actions/download-artifact@v4
       with:
-        pattern: native-lib-*
+        pattern: native-*
         path: downloaded-libs/
-        merge-multiple: true
+        merge-multiple: false
 
     - name: Organize native libraries
       run: |
@@ -230,9 +230,9 @@ jobs:
     - name: Download all native libraries
       uses: actions/download-artifact@v4
       with:
-        pattern: native-lib-*
+        pattern: native-*
         path: downloaded-libs/
-        merge-multiple: true
+        merge-multiple: false
 
     - name: Organize native libraries for packaging
       run: |
@@ -243,26 +243,57 @@ jobs:
         mkdir -p src/main/resources/native/macos/arm64
         
         # Debug: Show what we downloaded
-        echo "Downloaded artifacts:"
+        echo "Downloaded artifacts structure:"
         find downloaded-libs/ -type f -exec ls -la {} \;
+        echo "Downloaded directories:"
+        find downloaded-libs/ -type d
         
-        # Copy libraries based on artifact structure
-        # Note: actions/download-artifact creates subdirectories for each artifact
-        if [ -f "downloaded-libs/native-lib-linux-amd64/libjavaext_time.so" ]; then
-          cp downloaded-libs/native-lib-linux-amd64/libjavaext_time.so src/main/resources/native/linux/amd64/
-        fi
-        
-        if [ -f "downloaded-libs/native-lib-linux-arm64/libjavaext_time.so" ]; then
-          cp downloaded-libs/native-lib-linux-arm64/libjavaext_time.so src/main/resources/native/linux/arm64/
-        fi
-        
-        if [ -f "downloaded-libs/native-lib-macos-amd64/libjavaext_time.dylib" ]; then
-          cp downloaded-libs/native-lib-macos-amd64/libjavaext_time.dylib src/main/resources/native/macos/amd64/
-        fi
-        
-        if [ -f "downloaded-libs/native-lib-macos-arm64/libjavaext_time.dylib" ]; then
-          cp downloaded-libs/native-lib-macos-arm64/libjavaext_time.dylib src/main/resources/native/macos/arm64/
-        fi
+        # Copy libraries based on artifact structure - more flexible approach
+        # Handle both naming patterns: native-lib-* and native-*
+        for artifact_dir in downloaded-libs/*/; do
+          echo "Processing artifact directory: $artifact_dir"
+          if [ -d "$artifact_dir" ]; then
+            artifact_name=$(basename "$artifact_dir")
+            echo "Artifact name: $artifact_name"
+            
+            # Find .so and .dylib files in this artifact
+            find "$artifact_dir" -name "*.so" -o -name "*.dylib" | while read lib_file; do
+              echo "Found library: $lib_file"
+              lib_name=$(basename "$lib_file")
+              
+              # Determine target based on artifact name and file extension
+              case "$artifact_name" in
+                *linux*amd64*|*linux-amd64*)
+                  if [[ "$lib_name" == *.so ]]; then
+                    echo "Copying $lib_file to linux/amd64/"
+                    cp "$lib_file" src/main/resources/native/linux/amd64/
+                  fi
+                  ;;
+                *linux*arm64*|*linux-arm64*)
+                  if [[ "$lib_name" == *.so ]]; then
+                    echo "Copying $lib_file to linux/arm64/"
+                    cp "$lib_file" src/main/resources/native/linux/arm64/
+                  fi
+                  ;;
+                *macos*amd64*|*macos-amd64*)
+                  if [[ "$lib_name" == *.dylib ]]; then
+                    echo "Copying $lib_file to macos/amd64/"
+                    cp "$lib_file" src/main/resources/native/macos/amd64/
+                  fi
+                  ;;
+                *macos*arm64*|*macos-arm64*)
+                  if [[ "$lib_name" == *.dylib ]]; then
+                    echo "Copying $lib_file to macos/arm64/"
+                    cp "$lib_file" src/main/resources/native/macos/arm64/
+                  fi
+                  ;;
+                *)
+                  echo "Unknown artifact pattern: $artifact_name"
+                  ;;
+              esac
+            done
+          fi
+        done
         
         # Verify all libraries are in place
         echo "Libraries in resources directory:"
