@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <jni.h>
+#include <stdint.h>
 
 // Platform-specific headers
 #if __APPLE__
