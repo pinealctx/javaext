@@ -91,7 +91,7 @@ jobs:
     - name: Upload native library artifact
       uses: actions/upload-artifact@v4
       with:
-        name: native-lib-${{ matrix.platform }}-${{ matrix.arch }}
+        name: native-${{ matrix.platform }}-${{ matrix.arch }}
         path: target/native/${{ matrix.target_dir }}/${{ matrix.lib_name }}
         retention-days: 7
 
@@ -136,7 +136,7 @@ jobs:
     - name: Upload native library artifact
       uses: actions/upload-artifact@v4
       with:
-        name: native-lib-linux-arm64
+        name: native-linux-arm64
         path: target/native/linux/arm64/libjavaext_time.so
         retention-days: 7
 
@@ -244,64 +244,86 @@ jobs:
         
         # Debug: Show what we downloaded
         echo "Downloaded artifacts structure:"
-        find downloaded-libs/ -type f -exec ls -la {} \;
-        echo "Downloaded directories:"
-        find downloaded-libs/ -type d
-        
-        # Copy libraries based on artifact structure - more flexible approach
-        # Handle both naming patterns: native-lib-* and native-*
-        for artifact_dir in downloaded-libs/*/; do
-          echo "Processing artifact directory: $artifact_dir"
-          if [ -d "$artifact_dir" ]; then
-            artifact_name=$(basename "$artifact_dir")
-            echo "Artifact name: $artifact_name"
-            
-            # Find .so and .dylib files in this artifact
-            find "$artifact_dir" -name "*.so" -o -name "*.dylib" | while read lib_file; do
-              echo "Found library: $lib_file"
-              lib_name=$(basename "$lib_file")
-              
-              # Determine target based on artifact name and file extension
-              case "$artifact_name" in
-                *linux*amd64*|*linux-amd64*)
-                  if [[ "$lib_name" == *.so ]]; then
-                    echo "Copying $lib_file to linux/amd64/"
-                    cp "$lib_file" src/main/resources/native/linux/amd64/
-                  fi
-                  ;;
-                *linux*arm64*|*linux-arm64*)
-                  if [[ "$lib_name" == *.so ]]; then
-                    echo "Copying $lib_file to linux/arm64/"
-                    cp "$lib_file" src/main/resources/native/linux/arm64/
-                  fi
-                  ;;
-                *macos*amd64*|*macos-amd64*)
-                  if [[ "$lib_name" == *.dylib ]]; then
-                    echo "Copying $lib_file to macos/amd64/"
-                    cp "$lib_file" src/main/resources/native/macos/amd64/
-                  fi
-                  ;;
-                *macos*arm64*|*macos-arm64*)
-                  if [[ "$lib_name" == *.dylib ]]; then
-                    echo "Copying $lib_file to macos/arm64/"
-                    cp "$lib_file" src/main/resources/native/macos/arm64/
-                  fi
-                  ;;
-                *)
-                  echo "Unknown artifact pattern: $artifact_name"
-                  ;;
-              esac
-            done
+        ls -la downloaded-libs/
+        echo "Contents of each artifact:"
+        for dir in downloaded-libs/*/; do
+          if [ -d "$dir" ]; then
+            echo "=== $dir ==="
+            find "$dir" -type f -exec ls -la {} \;
           fi
         done
         
+        # Copy libraries with explicit naming and error checking
+        copy_count=0
+        
+        # Linux AMD64
+        if [ -f "downloaded-libs/native-linux-amd64/libjavaext_time.so" ]; then
+          echo "✓ Copying Linux AMD64 library"
+          cp "downloaded-libs/native-linux-amd64/libjavaext_time.so" src/main/resources/native/linux/amd64/
+          copy_count=$((copy_count + 1))
+        else
+          echo "✗ Linux AMD64 library not found at downloaded-libs/native-linux-amd64/libjavaext_time.so"
+        fi
+        
+        # Linux ARM64  
+        if [ -f "downloaded-libs/native-linux-arm64/libjavaext_time.so" ]; then
+          echo "✓ Copying Linux ARM64 library"
+          cp "downloaded-libs/native-linux-arm64/libjavaext_time.so" src/main/resources/native/linux/arm64/
+          copy_count=$((copy_count + 1))
+        else
+          echo "✗ Linux ARM64 library not found at downloaded-libs/native-linux-arm64/libjavaext_time.so"
+        fi
+        
+        # macOS AMD64
+        if [ -f "downloaded-libs/native-macos-amd64/libjavaext_time.dylib" ]; then
+          echo "✓ Copying macOS AMD64 library"
+          cp "downloaded-libs/native-macos-amd64/libjavaext_time.dylib" src/main/resources/native/macos/amd64/
+          copy_count=$((copy_count + 1))
+        else
+          echo "✗ macOS AMD64 library not found at downloaded-libs/native-macos-amd64/libjavaext_time.dylib"
+        fi
+        
+        # macOS ARM64
+        if [ -f "downloaded-libs/native-macos-arm64/libjavaext_time.dylib" ]; then
+          echo "✓ Copying macOS ARM64 library"
+          cp "downloaded-libs/native-macos-arm64/libjavaext_time.dylib" src/main/resources/native/macos/arm64/
+          copy_count=$((copy_count + 1))
+        else
+          echo "✗ macOS ARM64 library not found at downloaded-libs/native-macos-arm64/libjavaext_time.dylib"
+        fi
+        
+        echo "Successfully copied $copy_count libraries"
+        
+        # Fail if no libraries were copied
+        if [ $copy_count -eq 0 ]; then
+          echo "ERROR: No native libraries were copied!"
+          exit 1
+        fi
+        
         # Verify all libraries are in place
-        echo "Libraries in resources directory:"
+        echo "Final libraries in resources directory:"
         find src/main/resources/native/ -type f -exec ls -la {} \;
 
     - name: Build final JAR with all native libraries
       run: |
+        # Show the resources before building
+        echo "Resources before Maven build:"
+        if [ -d "src/main/resources/native" ]; then
+          find src/main/resources/native -type f -exec ls -la {} \;
+        else
+          echo "No native resources directory found!"
+        fi
+        
+        # Build with Maven
         mvn clean package -DskipNativeBuild=true
+        
+        # Verify the JAR contents
+        echo "JAR contents after build:"
+        jar tf target/*.jar | grep native || echo "No native files found in JAR!"
+        
+        # Show detailed JAR contents for native directory
+        echo "Detailed native directory in JAR:"
+        jar tf target/*.jar | grep "^native/" | head -20
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
